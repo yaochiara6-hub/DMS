@@ -4,9 +4,12 @@ import javafx.scene.paint.Color;
 
 import java.awt.*;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Random;
 
 public class Obstacle {
+    private static final int MAX_OBSTACLES = 50;
     private Color color = Color.BLACK;
     private ArrayList<Point> obstacles = new ArrayList<>();
     private int x;
@@ -18,17 +21,16 @@ public class Obstacle {
     }
 
     public void newObstacles(Snake snek, Coin coin, int amount) {
-        if (obstacles.size() > 50) {
+        int availableSlots = Math.max(0, MAX_OBSTACLES - obstacles.size());
+        if (amount <= 0 || availableSlots == 0) {
             return;
         }
-        Random rnd = new Random();
-        Point p;
-        for (int i=0; i<amount; i++) {
-            do {
-                p = new Point(rnd.nextInt(x) + 1, rnd.nextInt(y));
-            } while (coin.getPos().equals(p) || snek.getBody().contains(p) || snek.getHead().equals(p));
-            obstacles.add(p);
-        }
+
+        List<Point> available = GridPositionPicker.availablePositions(
+                x, y, snek.getHead(), snek.getBody(), obstacles, coin.getPos());
+        Collections.shuffle(available, new Random());
+        int placementCount = Math.min(amount, Math.min(availableSlots, available.size()));
+        obstacles.addAll(available.subList(0, placementCount));
     }
 
     public Color getColor() {

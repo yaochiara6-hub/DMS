@@ -14,6 +14,8 @@ import java.io.File;
 import java.util.Random;
 
 public class GameController {
+    enum PowerUpKind { GOLD, RAINBOW, BLUE, SILVER, NORMAL }
+
     private Snake snek;
     private Coin coin;
     private GameView gameView;
@@ -65,6 +67,9 @@ public class GameController {
                 game.incScore();
                 if (game.gameWon()) {
                     gameView.drawGrid(coin, snek, obstacle, gameView.gc, false, 0);
+                    stopAnimation();
+                    gameView.gameWon();
+                    gameView.updateScoreLabel();
                     return;
                 }
                 newCoin();
@@ -72,8 +77,10 @@ public class GameController {
 
             keyPressed = false;
 
-            if (!snek.getDead() || snek.hitSelf()) {
-                gameView.drawGrid(coin, snek, obstacle, gameView.gc, false, 0);
+            gameView.drawGrid(coin, snek, obstacle, gameView.gc, false, 0);
+
+            if (snek.getDead()) {
+                stopAnimation();
             }
 
             gameView.gameWon();
@@ -123,14 +130,21 @@ public class GameController {
     }
 
     private boolean valKey(KeyCode key) {
-        if (!key.isArrowKey()) return false;
-        else {
-            if (key.equals(KeyCode.LEFT)) if (!this.key.equals(KeyCode.RIGHT)) return true;
-            if (key.equals(KeyCode.RIGHT)) if (!this.key.equals(KeyCode.LEFT)) return true;
-            if (key.equals(KeyCode.DOWN)) if (!this.key.equals(KeyCode.DOWN)) return true;
-            if (key.equals(KeyCode.UP)) return !this.key.equals(KeyCode.DOWN);
+        return isValidDirection(this.key, key);
+    }
+
+    static boolean isValidDirection(KeyCode current, KeyCode next) {
+        if (next == null || !next.isArrowKey()) {
             return false;
         }
+        return !((current == KeyCode.LEFT && next == KeyCode.RIGHT)
+                || (current == KeyCode.RIGHT && next == KeyCode.LEFT)
+                || (current == KeyCode.UP && next == KeyCode.DOWN)
+                || (current == KeyCode.DOWN && next == KeyCode.UP));
+    }
+
+    private void stopAnimation() {
+        animation.stop();
     }
 
     private void reset() {
@@ -175,20 +189,26 @@ public class GameController {
     private void newCoin() {
         if (game.isPowerUp()) {
             Random rnd = new Random();
-            int ran = rnd.nextInt(12);
-            if (ran == 1) {
-                coin = new GoldCoin(game.getWidth(), game.getHeight(), snek, obstacle);
-            } else if (ran == 1) {
-                coin = new RainbowCoin(game.getWidth(), game.getHeight(), snek, obstacle);
-            } else if (ran == 3) {
-                coin = new BlueCoin(game.getWidth(), game.getHeight(), snek, obstacle);
-            } else if (ran == 4 && obstacle.getObstacles().size() == 0) {
-                coin = new SilverCoin(game.getWidth(), game.getHeight(), snek, obstacle);
-            } else {
-                coin = new Coin(game.getWidth(), game.getHeight(), snek, obstacle);
-            }
+            PowerUpKind kind = powerUpForRoll(rnd.nextInt(12), obstacle.getObstacles().isEmpty());
+            coin = switch (kind) {
+                case GOLD -> new GoldCoin(game.getWidth(), game.getHeight(), snek, obstacle);
+                case RAINBOW -> new RainbowCoin(game.getWidth(), game.getHeight(), snek, obstacle);
+                case BLUE -> new BlueCoin(game.getWidth(), game.getHeight(), snek, obstacle);
+                case SILVER -> new SilverCoin(game.getWidth(), game.getHeight(), snek, obstacle);
+                case NORMAL -> new Coin(game.getWidth(), game.getHeight(), snek, obstacle);
+            };
         } else {
             coin = new Coin(game.getWidth(), game.getHeight(), snek, obstacle);
         }
+    }
+
+    static PowerUpKind powerUpForRoll(int roll, boolean canSpawnSilver) {
+        return switch (roll) {
+            case 1 -> PowerUpKind.GOLD;
+            case 2 -> PowerUpKind.RAINBOW;
+            case 3 -> PowerUpKind.BLUE;
+            case 4 -> canSpawnSilver ? PowerUpKind.SILVER : PowerUpKind.NORMAL;
+            default -> PowerUpKind.NORMAL;
+        };
     }
 }
